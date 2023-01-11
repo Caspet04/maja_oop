@@ -168,6 +168,7 @@ export class InMemoryHiscores implements Hiscores {
         console.log(request);
 
         let ranks: Rank[] = [];
+        // for ... of loops are up to 2.7 times slower than a normal for loop
         for (const leaderboard of leaderboards.values()) {
             const rank = leaderboard.get_rank(request.player_id);
             if (rank != null) ranks.push(rank);
