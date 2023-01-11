@@ -171,10 +171,13 @@ export class InMemoryHiscores implements Hiscores {
         // the leaderboard only allows a single score and the new score is
         // larger than the previous highscore, so return success true
         leaderboard.scores[otherScoreIndex] = request.score;
+        // Sort from largest to smallest
+        leaderboard.scores.sort((a, b) => b.value - a.value);
+        const newIndex = leaderboard.scores.indexOf(request.score);
         return {
             success: true,
             rank: {
-                index: otherScoreIndex + 1,
+                index: newIndex + 1,
                 leaderboard_id: request.leaderboard_id,
                 score: request.score,
             },
