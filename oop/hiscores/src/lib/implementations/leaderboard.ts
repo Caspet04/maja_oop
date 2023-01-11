@@ -45,7 +45,7 @@ export class MultiScoreLeaderboard extends ScoreLeaderboard {
         this._scores.sort((a, b) => b.value - a.value);
 
         // Return the rank of this specific score
-        let index = this._scores.indexOf(score);
+        const index = this._scores.indexOf(score);
         return {
             index: index + 1,
             leaderboard_id: this.id,
@@ -87,7 +87,7 @@ export class SingleScoreLeaderboard extends ScoreLeaderboard {
         }
 
         // Check that the previous score is not lower
-        let previousScore = this.scoreMap.get(score.player.id);
+        const previousScore = this.scoreMap.get(score.player.id);
         if (previousScore != null && previousScore.value > score.value)
             return { index, leaderboard_id: this.id, score };
 
@@ -104,10 +104,10 @@ export class SingleScoreLeaderboard extends ScoreLeaderboard {
     }
 
     public get_rank(player_id: string): Rank | null {
-        let score = this.scoreMap.get(player_id);
+        const score = this.scoreMap.get(player_id);
         if (score == null) return null;
 
-        let rank = this.rankings.get(player_id);
+        const rank = this.rankings.get(player_id);
         if (rank == null) return null;
 
         return { index: rank, leaderboard_id: this.id, score };

@@ -98,7 +98,7 @@ export class InMemoryHiscores implements Hiscores {
         console.log("GetScoresRequest");
         console.log(request);
 
-        let leaderboard = leaderboards.get(request.leaderboard_id);
+        const leaderboard = leaderboards.get(request.leaderboard_id);
 
         // Check if leaderboard does not exist
         if (leaderboard == null) return { success: false, scores: [] };
@@ -125,7 +125,7 @@ export class InMemoryHiscores implements Hiscores {
         console.log("SubmitScoreRequest");
         console.log(request);
 
-        let leaderboard = leaderboards.get(request.leaderboard_id);
+        const leaderboard = leaderboards.get(request.leaderboard_id);
 
         // Check if leaderboard does not exist
         if (leaderboard == null)
@@ -147,8 +147,8 @@ export class InMemoryHiscores implements Hiscores {
         // since it is slightly less performant to create a useless object
         // and annoying as well
 
-        let currentRank = leaderboard.add_score(request.score);
-        let topRank = leaderboard.get_rank(request.score.player.id);
+        const currentRank = leaderboard.add_score(request.score);
+        const topRank = leaderboard.get_rank(request.score.player.id);
 
         // Return only success as true if it is the top score,
         // return the rank of the score itself regardless since
