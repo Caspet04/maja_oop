@@ -1,164 +1,183 @@
 import { Implementation, type Hiscores } from "$lib/do_not_modify/hiscores";
-import type { Leaderboard } from "$lib/do_not_modify/leaderboard";
-import { JumpPlayer } from "$lib/do_not_modify/player";
-import { DefaultRank } from "$lib/do_not_modify/rank";
+import type { Rank } from "$lib/do_not_modify/rank";
 import type {
-  GetLeaderboardsRequest,
-  GetLeaderboardsResponse,
-  CreateLeaderboardRequest,
-  CreateLeaderboardResponse,
-  DeleteLeaderboardRequest,
-  DeleteLeaderboardResponse,
-  GetScoresRequest,
-  GetScoresResponse,
-  SubmitScoreRequest,
-  SubmitScoreResponse,
-  GetRanksForPlayerRequest,
-  GetRanksForPlayerResponse,
+    GetLeaderboardsRequest,
+    GetLeaderboardsResponse,
+    CreateLeaderboardRequest,
+    CreateLeaderboardResponse,
+    DeleteLeaderboardRequest,
+    DeleteLeaderboardResponse,
+    GetScoresRequest,
+    GetScoresResponse,
+    SubmitScoreRequest,
+    SubmitScoreResponse,
+    GetRanksForPlayerRequest,
+    GetRanksForPlayerResponse,
 } from "$lib/do_not_modify/requests";
-import { JumpScore, type Score } from "$lib/do_not_modify/score";
+import type { Score } from "$lib/do_not_modify/score";
+import {
+    MultiScoreLeaderboard,
+    SingleScoreLeaderboard,
+    type ScoreLeaderboard,
+} from "$lib/implementations/leaderboard";
 
 // LEADERBOARD IS REPRESENTED AS A MAP OF KEY - VALUE PAIRS
 // THE KEY IS THE LEADERBOARD_ID, THE VALUE IS THE LEADERBOARD ITSELF
 // WE CAN LATER USE SET/GET/DELETE TO CRATE/READ/DELETE LEADERBOARDS
 // WE CAN GET THE LEADERBOARD TO GET THE SCORES AND UPDATE THE SCORES
-let leaderboards: Map<string, Leaderboard> = new Map<string, Leaderboard>();
+let leaderboards: Map<string, ScoreLeaderboard> = new Map<
+    string,
+    ScoreLeaderboard
+>();
 
 export class InMemoryHiscores implements Hiscores {
-  implementation: Implementation = Implementation.INMEMORY;
+    implementation: Implementation = Implementation.INMEMORY;
 
-  async get_leaderboards(
-    request: GetLeaderboardsRequest
-  ): Promise<GetLeaderboardsResponse> {
-    // NO NEED TO TOUCH THIS. IMPLEMENTATION FINISHED
-    // THE RESPONSE SHOULD RETURN THE IDS FOR ALL LEADERBOARDS
-    // GETTING THE KEYS FOR THE MAP GETS THE IDS FOR THE LEADERBOARDS
+    async get_leaderboards(
+        request: GetLeaderboardsRequest
+    ): Promise<GetLeaderboardsResponse> {
+        // NO NEED TO TOUCH THIS. IMPLEMENTATION FINISHED
+        // THE RESPONSE SHOULD RETURN THE IDS FOR ALL LEADERBOARDS
+        // GETTING THE KEYS FOR THE MAP GETS THE IDS FOR THE LEADERBOARDS
 
-    const response: GetLeaderboardsResponse = {
-      success: true,
-      leaderboards: [...leaderboards.keys()],
-    };
+        const response: GetLeaderboardsResponse = {
+            success: true,
+            leaderboards: [...leaderboards.keys()],
+        };
 
-    return response;
-  }
+        return response;
+    }
 
-  async create_leaderboard(
-    request: CreateLeaderboardRequest
-  ): Promise<CreateLeaderboardResponse> {
-    // TODO: implement logic
+    async create_leaderboard(
+        request: CreateLeaderboardRequest
+    ): Promise<CreateLeaderboardResponse> {
+        console.log("CreateLeaderboardRequest");
+        console.log(request);
 
-    console.log("CreateLeaderboardRequest");
-    console.log(request);
+        // Check if leaderboard already exists
+        if (leaderboards.has(request.leaderboard_id)) return { success: false };
 
-    // TODO: CHECK IF PROVIDED LEADERBOARD_ID ALREADY EXISTS
-    // IF IT EXISTS RETURN SUCCESS FALSE
+        if (request.save_multiple_scores_per_player) {
+            leaderboards.set(
+                request.leaderboard_id,
+                new MultiScoreLeaderboard(request.leaderboard_id)
+            );
+        } else {
+            leaderboards.set(
+                request.leaderboard_id,
+                new SingleScoreLeaderboard(request.leaderboard_id)
+            );
+        }
 
-    // OTHERWISE CREATE A NEW LEADERBOARD AND SET THE NEW LEADERBOARD
-    // TO THE MAP OF LEADERBOARDS USING THE LEADERBOARD ID
-    // IN SOME WAY YOU NEED TO KEEP TRACK OF THE SETTING save_multiple_scores_per_player
-    // SO THAT YOU CAN IMPLEMENT THE CORRECT LOGIC FOR THE SCORE SUBMISSIONS
-    // RETURN SUCCESS TRUE IF SUCCESSFUL
+        const response: CreateLeaderboardResponse = {
+            success: false,
+        };
+        return response;
+    }
 
+    async delete_leaderboard(
+        request: DeleteLeaderboardRequest
+    ): Promise<DeleteLeaderboardResponse> {
+        console.log("DeleteLeaderboardRequest");
+        console.log(request);
 
-    const response: CreateLeaderboardResponse = {
-      success: false,
-    };
-    return response;
-  }
-  async delete_leaderboard(
-    request: DeleteLeaderboardRequest
-  ): Promise<DeleteLeaderboardResponse> {
-    // TODO: implement logic
+        // Check if leaderboard does not exist
+        if (!leaderboards.has(request.leaderboard_id))
+            return { success: false };
 
-    console.log("DeleteLeaderboardRequest");
-    console.log(request);
+        leaderboards.delete(request.leaderboard_id);
 
-    // TODO: CHECK IF PROVIDED LEADERBOARD_ID EXISTS
-    // IF IT DOESNT EXISTS RETURN SUCCESS FALSE
+        const response: DeleteLeaderboardResponse = {
+            success: true,
+        };
+        return response;
+    }
+    async get_scores_from_leaderboard(
+        request: GetScoresRequest
+    ): Promise<GetScoresResponse> {
+        console.log("GetScoresRequest");
+        console.log(request);
 
-    // OTHERWISE DELETE THE LEADERBOARD FROM THE MAP OF LEADERBOARDS USING LEADERBOARD ID
-    // RETURN SUCCESS TRUE IF SUCCESSFUL
+        let leaderboard = leaderboards.get(request.leaderboard_id);
 
-    const response: DeleteLeaderboardResponse = {
-      success: false,
-    };
-    return response;
-  }
-  async get_scores_from_leaderboard(
-    request: GetScoresRequest
-  ): Promise<GetScoresResponse> {
-    // TODO: implement logic
+        // Check if leaderboard does not exist
+        if (leaderboard == null) return { success: false, scores: [] };
 
-    console.log("GetScoresRequest");
-    console.log(request);
+        // It would have been preferable if the check could have returned
+        // { success: false, scores: null } or just { success: false }
+        // since it is slightly less performant to create a useless empty
+        // array
 
-    // TODO: CHECK IF PROVIDED LEADERBOARD_ID EXISTS
-    // IF IT DOESNT EXIST RETURN SUCCESS FALSE
+        const response: GetScoresResponse = {
+            success: true,
+            scores: leaderboard.scores.slice(
+                request.start_index,
+                request.end_index
+            ),
+        };
 
-    // OTHERWISE GET THE LEADERBOARD USING THE LEADERBOARD ID
-    // THEN GET THE SCORES FROM START_INDEX -> END_INDEX
-    // MAKE SURE TO SORT THE SCORES FIRST FROM HIGHEST TO LOWEST
-    // RETURN SUCCESS TRUE IF SUCCESSFUL AND THE SCORES
+        return response;
+    }
 
-    const response: GetScoresResponse = {
-      success: false,
-      scores: [],
-    };
+    async submit_score_to_leaderboard(
+        request: SubmitScoreRequest
+    ): Promise<SubmitScoreResponse> {
+        console.log("SubmitScoreRequest");
+        console.log(request);
 
-    return response;
-  }
-  async submit_score_to_leaderboard(
-    request: SubmitScoreRequest
-  ): Promise<SubmitScoreResponse> {
-    // TODO: implement logic
+        let leaderboard = leaderboards.get(request.leaderboard_id);
 
-    console.log("SubmitScoreRequest");
-    console.log(request);
+        // Check if leaderboard does not exist
+        if (leaderboard == null)
+            return {
+                success: false,
+                rank: {
+                    index: 0,
+                    leaderboard_id: "undefined",
+                    score: {
+                        value: 0,
+                        date: new Date(),
+                        player: { id: "undefined" },
+                    },
+                },
+            };
 
-    // TODO: CHECK IF PROVIDED LEADERBOARD_ID EXISTS
-    // IF IT DOESNT EXIST RETURN SUCCESS FALSE
+        // Again, it would have been preferable if the check could have returned
+        // { success: false, rank: null } or just { success: false }
+        // since it is slightly less performant to create a useless object
+        // and annoying as well
 
-    // OTHERWISE GET THE LEADERBOARD USING THE LEADERBOARD ID
-    // ADD THE SCORE TO THE LEADERBOARD
-    // REMEMBER HERE TO TAKE INTO CONSIDERATION IF THE LEADERBOARD HAS BEEN CONFIGURED TO ONLY
-    // SAVE ONE SCORE PER USER.
-    // LOGICALLY IF IT ONLY MAINTAINS THE HIGHEST SCORE MAKE SURE TO JUST SAVE THE HIGHEST SCORE
-    // PROBABLY RETURN SUCCESS FALSE IF IT ONLY SAVES ONE SCORE AND THE SUBMITTED SCORE WAS LOWER THAN PREVIOUS HIGH
-    // RETURN SUCCESS TRUE IF SUCCESSFUL AND THE RANK THE SCORE RECIEVED WHEN BEING SUBMITTED
-    // THE RANK CONTAINS THE LEADERBOARD ID, THE SCORE AND THE INDEX OF THE SCORE IN THE LEADERBOARD LIST OF SCORES
+        let currentRank = leaderboard.add_score(request.score);
+        let topRank = leaderboard.get_rank(request.score.player.id);
 
-    // YOU MIGHT CONSIDER SORTING THE SCORES HERE INSTEAD OF WHEN RETURNING SCORES, UP TO YOU.
+        // Return only success as true if it is the top score,
+        // return the rank of the score itself regardless since
+        // it could be useful to know the rank even if is not the
+        // top score
+        const response: SubmitScoreResponse = {
+            success: currentRank.score.value == topRank?.score.value,
+            rank: currentRank,
+        };
 
-    const response: SubmitScoreResponse = {
-      success: false,
-      rank: new DefaultRank(
-        0,
-        "foo",
-        new JumpScore(1337, new Date(), new JumpPlayer("bar", 9001))
-      ),
-    };
+        return response;
+    }
+    async get_all_ranks_for_player(
+        request: GetRanksForPlayerRequest
+    ): Promise<GetRanksForPlayerResponse> {
+        console.log("GetRanksForPlayerRequest");
+        console.log(request);
 
-    return response;
-  }
-  async get_all_ranks_for_player(
-    request: GetRanksForPlayerRequest
-  ): Promise<GetRanksForPlayerResponse> {
-    // TODO: implement logic
+        let ranks: Rank[] = [];
+        for (const leaderboard of leaderboards.values()) {
+            const rank = leaderboard.get_rank(request.player_id);
+            if (rank != null) ranks.push(rank);
+        }
 
-    console.log("GetRanksForPlayerRequest");
-    console.log(request);
+        const response: GetRanksForPlayerResponse = {
+            success: false,
+            ranks,
+        };
 
-    // FOR EACH LEADERBOARD ITERATE OVER ALL THEIR SCORES. THIS MEANS TWO NESTED LOOPS, AN OUTER OF ALL LEADERBOARDS
-    // AND AN INNER LOOP OVER THE LEADERBOARD SCORES.
-    // IF A PLAYER SCORE IS DETECTED USING THE PROVIDED PLAYER_ID, GET THE RANK FOR THE SCORE
-    // THE RANK CONTAINS THE LEADERBOARD ID THE SCORE WAS FOUND IN, THE SCORE ITSELF AND THE
-    // INDEX OF THE SCORE IN THE LEADERBOARD LIST OF SCORES
-
-    const response: GetRanksForPlayerResponse = {
-      success: false,
-      ranks: [],
-    };
-
-    return response;
-  }
+        return response;
+    }
 }
