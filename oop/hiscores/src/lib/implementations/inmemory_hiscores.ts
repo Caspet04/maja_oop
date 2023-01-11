@@ -98,6 +98,9 @@ export class InMemoryHiscores implements Hiscores {
         console.log("GetScoresRequest");
         console.log(request);
 
+        // There is very little, if any, performance increase when using const
+        // instead of let or var, but it is still useful to use it when a
+        // variable will not change its values again.
         const leaderboard = leaderboards.get(request.leaderboard_id);
 
         // Check if leaderboard does not exist
