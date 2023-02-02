@@ -15,7 +15,52 @@ import type {
     GetRanksForPlayerResponse,
 } from "$lib/do_not_modify/requests";
 import type { Score } from "$lib/do_not_modify/score";
-import { sqliteClient } from "$lib/database";
+import { database } from "$lib/database";
+
+async function leaderboardExists(id: string): Promise<boolean> {
+    return (
+        (await database.leaderboard.findFirst({
+            where: { id },
+        })) != null
+    );
+}
+
+async function get_rank_of_score_in_leaderboard(
+    score: Partial<Score>,
+    leaderboard_id: string
+): Promise<Rank | null> {
+    const scores = await database.score.findMany({
+        where: { leaderboardId: leaderboard_id },
+        orderBy: {
+            value: "desc",
+        },
+    });
+
+    const index = scores.findIndex((_score) => {
+        if (score.player == null && score.value == null) return false;
+
+        if (score.value != null && _score.value != score.value) return false;
+
+        if (score.player != null && _score.playerId != score.player.id)
+            return false;
+
+        return true;
+    });
+
+    if (index < 0) return null;
+
+    return {
+        index,
+        score: {
+            player: {
+                id: scores[index].playerId,
+            },
+            value: scores[index].value,
+            date: scores[index].date,
+        },
+        leaderboard_id,
+    };
+}
 
 export class SQLiteHiscores implements Hiscores {
     implementation: Implementation = Implementation.SQLITE;
@@ -23,55 +68,45 @@ export class SQLiteHiscores implements Hiscores {
     async get_leaderboards(
         request: GetLeaderboardsRequest
     ): Promise<GetLeaderboardsResponse> {
-        let leaderboards = await sqliteClient.leaderboard.findMany({
+        const leaderboards = await database.leaderboard.findMany({
             select: { id: true },
         });
-        const response: GetLeaderboardsResponse = {
+
+        return {
             success: true,
             leaderboards: leaderboards.map((leaderboard) => leaderboard.id),
         };
-
-        return response;
     }
     async create_leaderboard(
         request: CreateLeaderboardRequest
     ): Promise<CreateLeaderboardResponse> {
-        if (
-            await sqliteClient.leaderboard.findFirst({
-                where: { id: request.leaderboard_id },
-            })
-        ) {
+        if (await leaderboardExists(request.leaderboard_id)) {
             return {
                 success: false,
             };
         }
 
-        await sqliteClient.leaderboard.create({
+        await database.leaderboard.create({
             data: {
                 id: request.leaderboard_id,
                 multiple_scores: request.save_multiple_scores_per_player,
             },
         });
 
-        const response: CreateLeaderboardResponse = {
+        return {
             success: true,
         };
-        return response;
     }
     async delete_leaderboard(
         request: DeleteLeaderboardRequest
     ): Promise<DeleteLeaderboardResponse> {
-        if (
-            !(await sqliteClient.leaderboard.findFirst({
-                where: { id: request.leaderboard_id },
-            }))
-        ) {
+        if (!(await leaderboardExists(request.leaderboard_id))) {
             return {
                 success: false,
             };
         }
 
-        await sqliteClient.leaderboard.delete({
+        await database.leaderboard.delete({
             where: {
                 id: request.leaderboard_id,
             },
@@ -85,47 +120,37 @@ export class SQLiteHiscores implements Hiscores {
     async get_scores_from_leaderboard(
         request: GetScoresRequest
     ): Promise<GetScoresResponse> {
-        let leaderboard = await sqliteClient.leaderboard.findFirst({
+        const leaderboard = await database.leaderboard.findFirst({
             where: { id: request.leaderboard_id },
-            include: { scores: true },
+            include: { scores: { orderBy: { value: "desc" } } },
         });
-        let scores: Score[] = [];
+
         if (leaderboard == null || leaderboard.scores == null) {
-            const response: GetScoresResponse = {
+            return {
                 success: false,
                 scores: [],
             };
-        } else {
-            scores = leaderboard.scores
-                .map((score) => {
-                    return {
-                        value: score.value,
-                        date: score.date,
-                        player: { id: score.playerId },
-                    };
-                })
-                .slice(request.start_index, request.end_index);
         }
 
-        const response: GetScoresResponse = {
-            success: true,
-            scores: scores,
-        };
+        const scores = leaderboard.scores
+            .map((score) => ({
+                value: score.value,
+                date: score.date,
+                player: { id: score.playerId },
+            }))
+            .slice(request.start_index, request.end_index);
 
-        return response;
+        return {
+            success: true,
+            scores,
+        };
     }
     async submit_score_to_leaderboard(
         request: SubmitScoreRequest
     ): Promise<SubmitScoreResponse> {
-        const leaderboard = await sqliteClient.leaderboard.findFirst({
+        const leaderboard = await database.leaderboard.findFirst({
             where: { id: request.leaderboard_id },
-            include: {
-                scores: {
-                    orderBy: {
-                        value: "desc",
-                    },
-                },
-            },
+            include: { scores: { orderBy: { value: "desc" } } },
         });
         if (leaderboard == null) {
             return {
@@ -141,80 +166,62 @@ export class SQLiteHiscores implements Hiscores {
         const highscore = leaderboard.scores.find(
             (score) => score.playerId == request.score.player.id
         );
-        const score = {
+        const requestScore = {
             value: request.score.value,
             date: request.score.date,
             playerId: request.score.player.id,
         };
 
         if (leaderboard.multiple_scores || highscore == undefined) {
-            await sqliteClient.leaderboard.update({
+            await database.leaderboard.update({
                 where: { id: request.leaderboard_id },
-                data: { scores: { create: score } },
+                data: { scores: { create: requestScore } },
             });
 
-            const scores = await sqliteClient.score.findMany({
-                where: { leaderboardId: request.leaderboard_id },
-                orderBy: {
-                    value: "desc",
-                },
-            });
-            const index = scores.findIndex((score) => {
-                return (
-                    score.playerId == score.playerId &&
-                    score.value == score.value
-                );
-            });
+            const rank = await get_rank_of_score_in_leaderboard(
+                request.score,
+                leaderboard.id
+            );
 
             return {
                 success: true,
-                rank: {
-                    index: index + 1,
+                rank: rank ?? {
+                    index: -1,
                     score: request.score,
                     leaderboard_id: request.leaderboard_id,
                 },
             };
         }
 
-        if (highscore.value < score.value) {
-            await sqliteClient.score.update({
-                where: { id: highscore.id },
-                data: score,
-            });
-
-            const scores = await sqliteClient.score.findMany({
-                where: { leaderboardId: request.leaderboard_id },
-                orderBy: {
-                    value: "desc",
-                },
-            });
-            const index = scores.findIndex((score) => {
-                return (
-                    score.playerId == score.playerId &&
-                    score.value == score.value
-                );
-            });
-
+        if (highscore.value > requestScore.value) {
             return {
-                success: true,
+                success: false,
                 rank: {
-                    index: index + 1,
+                    index: -1,
                     score: request.score,
                     leaderboard_id: request.leaderboard_id,
                 },
             };
         }
 
-        const response: SubmitScoreResponse = {
-            success: false,
-            rank: {
+        await database.score.update({
+            where: { id: highscore.id },
+            data: requestScore,
+        });
+
+        const rank = await get_rank_of_score_in_leaderboard(
+            request.score,
+            leaderboard.id
+        );
+
+        return {
+            success: true,
+            rank: rank ?? {
                 index: -1,
                 score: request.score,
                 leaderboard_id: request.leaderboard_id,
             },
         };
-
-        return response;
     }
     async get_all_ranks_for_player(
         request: GetRanksForPlayerRequest
@@ -225,29 +232,14 @@ export class SQLiteHiscores implements Hiscores {
         const leaderboardIds = result.leaderboards;
 
         for (let i = 0; i < leaderboardIds.length; i++) {
-            let scores = (
-                await sqliteClient.leaderboard.findFirst({
-                    where: { id: leaderboardIds[i] },
-                    include: { scores: true },
-                })
-            )?.scores;
-            if (scores == undefined) continue;
-
-            scores = scores.sort((a, b) => b.value - a.value);
-            const scoreIndex = scores.findIndex(
-                (score) => score.playerId == request.player_id
+            const rank = await get_rank_of_score_in_leaderboard(
+                { player: { id: request.player_id } },
+                leaderboardIds[i]
             );
-            const score: Score = {
-                value: scores[scoreIndex].value,
-                date: scores[scoreIndex].date,
-                player: { id: scores[scoreIndex].playerId },
-            };
-            if (scoreIndex > -1)
-                ranks.push({
-                    index: scoreIndex + 1,
-                    leaderboard_id: leaderboardIds[i],
-                    score,
-                });
+
+            if (rank != null) {
+                ranks.push(rank);
+            }
         }
 
         const response: GetRanksForPlayerResponse = {

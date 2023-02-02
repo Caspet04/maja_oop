@@ -1,4 +1,3 @@
-import { PrismaClient as SqliteClient } from "@prisma/shared_client/sqlite_client";
-// import { PrismaClient as MongoDBClient } from "../../prisma/generated/mongodb-client";
+import { PrismaClient } from "@prisma/client";
 
-export const sqliteClient = new SqliteClient();
+export const database = new PrismaClient();
