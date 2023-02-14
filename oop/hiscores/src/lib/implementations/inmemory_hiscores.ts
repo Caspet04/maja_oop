@@ -46,9 +46,6 @@ export class InMemoryHiscores implements Hiscores {
     async create_leaderboard(
         request: CreateLeaderboardRequest
     ): Promise<CreateLeaderboardResponse> {
-        console.log("CreateLeaderboardRequest");
-        console.log(request);
-
         // Return success false if leaderboard already exists
         if (leaderboards.has(request.leaderboard_id)) return { success: false };
 
@@ -68,9 +65,6 @@ export class InMemoryHiscores implements Hiscores {
     async delete_leaderboard(
         request: DeleteLeaderboardRequest
     ): Promise<DeleteLeaderboardResponse> {
-        console.log("DeleteLeaderboardRequest");
-        console.log(request);
-
         // Return success false if leaderboard does not exist
         if (!leaderboards.has(request.leaderboard_id))
             return { success: false };
@@ -87,9 +81,6 @@ export class InMemoryHiscores implements Hiscores {
     async get_scores_from_leaderboard(
         request: GetScoresRequest
     ): Promise<GetScoresResponse> {
-        console.log("GetScoresRequest");
-        console.log(request);
-
         // Return success false if leaderboard does not exist
         const leaderboard = leaderboards.get(request.leaderboard_id);
         if (leaderboard == null)
@@ -115,9 +106,6 @@ export class InMemoryHiscores implements Hiscores {
     async submit_score_to_leaderboard(
         request: SubmitScoreRequest
     ): Promise<SubmitScoreResponse> {
-        console.log("SubmitScoreRequest");
-        console.log(request);
-
         // Return success false if leaderboard does not exist
         const leaderboard = leaderboards.get(request.leaderboard_id);
         if (leaderboard == null) {
@@ -147,7 +135,7 @@ export class InMemoryHiscores implements Hiscores {
             return {
                 success: true,
                 rank: {
-                    index: scoreIndex + 1,
+                    index: scoreIndex,
                     leaderboard_id: request.leaderboard_id,
                     score: request.score,
                 },
@@ -177,7 +165,7 @@ export class InMemoryHiscores implements Hiscores {
         return {
             success: true,
             rank: {
-                index: newIndex + 1,
+                index: newIndex,
                 leaderboard_id: request.leaderboard_id,
                 score: request.score,
             },
@@ -187,9 +175,6 @@ export class InMemoryHiscores implements Hiscores {
     async get_all_ranks_for_player(
         request: GetRanksForPlayerRequest
     ): Promise<GetRanksForPlayerResponse> {
-        console.log("GetRanksForPlayerRequest");
-        console.log(request);
-
         let ranks: Rank[] = [];
 
         for (const leaderboard of leaderboards.values()) {
@@ -198,7 +183,7 @@ export class InMemoryHiscores implements Hiscores {
             );
             if (scoreIndex > -1)
                 ranks.push({
-                    index: scoreIndex + 1,
+                    index: scoreIndex,
                     leaderboard_id: leaderboard.id,
                     score: leaderboard.scores[scoreIndex],
                 });

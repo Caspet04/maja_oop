@@ -1,3 +1,4 @@
+import { sqliteClient } from "$lib/database";
 import type { Hiscores } from "$lib/do_not_modify/hiscores";
 import { InMemoryHiscores } from "./inmemory_hiscores";
 import { MongoDBHiscores } from "./mongodb_hiscores";
