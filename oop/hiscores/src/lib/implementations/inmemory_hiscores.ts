@@ -157,7 +157,7 @@ export class InMemoryHiscores implements Hiscores {
         // Return success false if only a single score is saved and the new
         // score is smaller than the previous highscore
         if (leaderboard.scores[otherScoreIndex].value > request.score.value) {
-            return {
+            return { 
                 success: false,
                 rank: {
                     index: 0,

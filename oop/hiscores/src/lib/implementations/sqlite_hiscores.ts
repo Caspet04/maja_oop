@@ -178,7 +178,7 @@ export class SQLiteHiscores implements Hiscores {
 
         if (highscore.value < score.value) {
             await sqliteClient.score.update({
-                where: { id: highscore.id },
+                where: { id: highscore.id },    
                 data: score,
             });
 
